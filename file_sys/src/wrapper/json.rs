@@ -6,18 +6,19 @@ use std::fmt;
 
 use serde::Serialize;
 use serde::de::DeserializeOwned;
+use serde_json::error::Category;
 
 #[derive(Debug)]
 pub enum Error {
     Io(IoError),
-    Bincode(bincode::Error),
+    Json(serde_json::Error),
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Io(_) => f.write_str("Io"),
-            Error::Bincode(_) => f.write_str("Bincode"),
+            Error::Json(_) => f.write_str("Json"),
         }
     }
 }
@@ -26,24 +27,24 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Error::Io(e) => Some(e),
-            Error::Bincode(e) => Some(e),
+            Error::Json(e) => Some(e),
         }
     }
 }
 
-pub struct Binary<T> {
+pub struct Json<T> {
     inner: T,
     path: Box<Path>,
 }
 
-impl<T> Binary<T> {
+impl<T> Json<T> {
     pub fn new<P>(inner: T, path: P) -> Self
     where
         P: Into<PathBuf>
     {
         let buf = path.into();
 
-        Binary {
+        Json {
             inner,
             path: buf.into(),
         }
@@ -57,7 +58,9 @@ impl<T> Binary<T> {
     where
         P: Into<PathBuf>
     {
-        self.path = path.into().into();
+        let buf = path.into();
+
+        self.path = buf.into();
     }
 
     pub fn inner(&self) -> &T {
@@ -73,7 +76,7 @@ impl<T> Binary<T> {
     }
 }
 
-impl<T> Binary<T>
+impl<T> Json<T>
 where
     T: Serialize
 {
@@ -85,17 +88,17 @@ where
             .map_err(|e| Error::Io(e))?;
         let writer = BufWriter::new(file);
 
-        bincode::serialize_into(writer, &self.inner)
-            .map_err(|e| match *e {
-                bincode::ErrorKind::Io(io) => Error::Io(io),
-                _ => Error::Bincode(e)
+        serde_json::to_writer(writer, &self.inner)
+            .map_err(|e| match e.classify() {
+                Category::Io => Error::Io(e.into()),
+                _ => Error::Json(e)
             })?;
 
         Ok(())
     }
 }
 
-impl<T> Binary<T>
+impl<T> Json<T>
 where
     T: DeserializeOwned
 {
@@ -110,20 +113,20 @@ where
             .map_err(|e| Error::Io(e))?;
         let reader = BufReader::new(file);
 
-        let inner = bincode::deserialize_from(reader)
-            .map_err(|e| match *e {
-                bincode::ErrorKind::Io(io) => Error::Io(io),
-                _ => Error::Bincode(e)
+        let inner = serde_json::from_reader(reader)
+            .map_err(|e| match e.classify() {
+                Category::Io => Error::Io(e.into()),
+                _ => Error::Json(e)
             })?;
 
-        Ok(Binary {
+        Ok(Json {
             inner,
             path
         })
     }
 }
 
-impl<T> std::ops::Deref for Binary<T> {
+impl<T> std::ops::Deref for Json<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -131,25 +134,25 @@ impl<T> std::ops::Deref for Binary<T> {
     }
 }
 
-impl<T> std::ops::DerefMut for Binary<T> {
+impl<T> std::ops::DerefMut for Json<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
 }
 
-impl<T> std::fmt::Debug for Binary<T>
+impl<T> std::fmt::Debug for Json<T>
 where
     T: std::fmt::Debug
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Binary")
+        f.debug_struct("Json")
             .field("inner", &self.inner)
             .field("path", &self.path)
             .finish()
     }
 }
 
-impl<T> std::cmp::PartialEq for Binary<T>
+impl<T> std::cmp::PartialEq for Json<T>
 where
     T: std::cmp::PartialEq
 {
@@ -158,7 +161,7 @@ where
     }
 }
 
-impl<T> std::cmp::Eq for Binary<T>
+impl<T> std::cmp::Eq for Json<T>
 where
     T: std::cmp::Eq
 {}
@@ -170,17 +173,17 @@ mod test {
 
     #[test]
     fn base() {
-        let file_name = "test.binary";
+        let file_name = "test.json";
         let inner = usize::MAX;
 
         wrapper::test::create_test_file(file_name);
 
-        let wrapper = Binary::new(inner, file_name);
+        let wrapper = Json::new(inner, file_name);
 
-        wrapper.save().expect("failed to save to binary file");
+        wrapper.save().expect("failed to save to json file");
 
-        let and_back: Binary<usize> = Binary::load(PathBuf::from(file_name))
-            .expect("failed to load binary file");
+        let and_back: Json<usize> = Json::load(PathBuf::from(file_name))
+            .expect("failed to load json file");
 
         assert_eq!(wrapper, and_back);
     }

@@ -296,7 +296,7 @@ where
     where
         S: Serializer
     {
-        let mut state = serializer.serialize_struct("Fixed", 2)?;
+        let mut state = serializer.serialize_struct("Fixed", 4)?;
         state.serialize_field("list", &self.list.as_slice())?;
         state.serialize_field("next", &self.next)?;
         state.serialize_field("oldest", &self.oldest)?;
@@ -653,10 +653,10 @@ mod test {
         };
 
         let to_vec = bincode::serialize(&original)
-            .expect("failed to serialize to json string");
+            .expect("failed to serialize to binary");
 
         let and_back: Fixed<u8, SIZE> = bincode::deserialize(&to_vec)
-            .expect("failed to deserialize from json string");
+            .expect("failed to deserialize from binary");
 
         assert_eq!(original.list, and_back.list, "list values are not equal");
         assert_eq!(original.next, and_back.next, "next values are not equal");
