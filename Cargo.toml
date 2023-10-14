@@ -8,7 +8,7 @@ edition = "2021"
 [workspace]
 members = [
 	"history",
-	"file_sys",
+	"file-sys",
 ]
 
 [dependencies]
