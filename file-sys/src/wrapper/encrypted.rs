@@ -281,14 +281,6 @@ where
     }
 }
 
-impl<T> std::ops::Deref for Encrypted<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
 impl<T> std::fmt::Debug for Encrypted<T>
 where
     T: std::fmt::Debug
@@ -301,19 +293,30 @@ where
     }
 }
 
-impl<T> std::cmp::PartialEq for Encrypted<T>
-where
-    T: std::cmp::PartialEq
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.inner == other.inner
+impl<T> std::convert::AsRef<T> for Encrypted<T> {
+    fn as_ref(&self) -> &T {
+        &self.inner
     }
 }
 
-impl<T> std::cmp::Eq for Encrypted<T>
+impl<T> std::convert::AsMut<T> for Encrypted<T> {
+    fn as_mut(&mut self) -> &mut T {
+        &mut self.inner
+    }
+}
+
+impl<T> Clone for Encrypted<T>
 where
-    T: std::cmp::Eq
-{}
+    T: Clone
+{
+    fn clone(&self) -> Self {
+        Encrypted {
+            inner: self.inner.clone(),
+            path: self.path.clone(),
+            key: self.key.clone()
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {
@@ -337,7 +340,7 @@ mod test {
             key
         ).expect("failed to load encrypted file");
 
-        assert_eq!(wrapper, and_back);
+        assert_eq!(wrapper.inner(), and_back.inner());
     }
 
     #[cfg(feature = "tokio")]
@@ -359,6 +362,6 @@ mod test {
             .await
             .expect("failed to load tokio encrypted file");
 
-        assert_eq!(wrapper, and_back);
+        assert_eq!(wrapper.inner(), and_back.inner());
     }
 }

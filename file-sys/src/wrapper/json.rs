@@ -126,20 +126,6 @@ where
     }
 }
 
-impl<T> std::ops::Deref for Json<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<T> std::ops::DerefMut for Json<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
-    }
-}
-
 impl<T> std::fmt::Debug for Json<T>
 where
     T: std::fmt::Debug
@@ -152,19 +138,29 @@ where
     }
 }
 
-impl<T> std::cmp::PartialEq for Json<T>
-where
-    T: std::cmp::PartialEq
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.inner == other.inner
+impl<T> std::convert::AsRef<T> for Json<T> {
+    fn as_ref(&self) -> &T {
+        &self.inner
     }
 }
 
-impl<T> std::cmp::Eq for Json<T>
+impl<T> std::convert::AsMut<T> for Json<T> {
+    fn as_mut(&mut self) -> &mut T {
+        &mut self.inner
+    }
+}
+
+impl<T> Clone for Json<T>
 where
-    T: std::cmp::Eq
-{}
+    T: Clone
+{
+    fn clone(&self) -> Self {
+        Json {
+            inner: self.inner.clone(),
+            path: self.path.clone()
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {
@@ -185,6 +181,6 @@ mod test {
         let and_back: Json<usize> = Json::load(PathBuf::from(file_name))
             .expect("failed to load json file");
 
-        assert_eq!(wrapper, and_back);
+        assert_eq!(wrapper.inner(), and_back.inner());
     }
 }

@@ -123,20 +123,6 @@ where
     }
 }
 
-impl<T> std::ops::Deref for Binary<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<T> std::ops::DerefMut for Binary<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
-    }
-}
-
 impl<T> std::fmt::Debug for Binary<T>
 where
     T: std::fmt::Debug
@@ -149,19 +135,29 @@ where
     }
 }
 
-impl<T> std::cmp::PartialEq for Binary<T>
-where
-    T: std::cmp::PartialEq
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.inner == other.inner
+impl<T> std::convert::AsRef<T> for Binary<T> {
+    fn as_ref(&self) -> &T {
+        &self.inner
     }
 }
 
-impl<T> std::cmp::Eq for Binary<T>
+impl<T> std::convert::AsMut<T> for Binary<T> {
+    fn as_mut(&mut self) -> &mut T {
+        &mut self.inner
+    }
+}
+
+impl<T> Clone for Binary<T>
 where
-    T: std::cmp::Eq
-{}
+    T: Clone
+{
+    fn clone(&self) -> Self {
+        Binary {
+            inner: self.inner.clone(),
+            path: self.path.clone(),
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {
@@ -182,6 +178,6 @@ mod test {
         let and_back: Binary<usize> = Binary::load(PathBuf::from(file_name))
             .expect("failed to load binary file");
 
-        assert_eq!(wrapper, and_back);
+        assert_eq!(wrapper.inner(), and_back.inner());
     }
 }
