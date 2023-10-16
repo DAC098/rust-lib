@@ -45,6 +45,7 @@ impl<T> Versioned<T> {
         self.store.remove(version)
     }
 
+    /*
     /// returns a reference to the desired version
     pub fn get(&self, version: &u64) -> Option<&T> {
         self.store.get(version)
@@ -59,6 +60,7 @@ impl<T> Versioned<T> {
     pub fn latest_version(&self) -> Option<(&u64, &T)> {
         self.store.last_key_value()
     }
+    */
 }
 
 impl<T> fmt::Debug for Versioned<T>

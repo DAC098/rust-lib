@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
 use std::sync::{Mutex, RwLock};
 use std::sync::RwLockReadGuard;
-use std::ptr::NonNull;
+//use std::ptr::NonNull;
 use std::fmt;
 
+/*
 /// reference struct for the stored value
 ///
 /// contains the read guard from the rwlock in RwVersioned
@@ -47,14 +48,7 @@ impl<'a, T> KeyValue<'a, T> {
         unsafe { self.value.as_ref() }
     }
 }
-
-impl<'a, T> std::ops::Deref for KeyValue<'a, T> {
-    type Target = T;
-
-    fn deref(&self) -> &'a Self::Target {
-        unsafe { self.value.as_ref() }
-    }
-}
+*/
 
 /// possible errors from methods in RwVersioned
 pub enum Error {
@@ -148,6 +142,7 @@ impl<T> RwVersioned<T> {
         Ok(store_writer.remove(version))
     }
 
+    /*
     /// returns a reference to the desired version
     ///
     /// the struct returned contains the value and RwLockReadGuard used to
@@ -215,6 +210,7 @@ impl<T> RwVersioned<T> {
 
         Ok(Some(rtn))
     }
+    */
 }
 
 #[cfg(feature = "serde")]
@@ -376,9 +372,10 @@ mod test {
         store.update(2).unwrap();
         store.update(3).unwrap();
 
+        let reader = store.store()
+            .expect("poisoned rw lock");
 
-        let v = store.get(&1)
-            .expect("poisoned rw lock")
+        let v = reader.get(&1)
             .expect("failed to find version");
 
         assert_eq!(*v, 2);
