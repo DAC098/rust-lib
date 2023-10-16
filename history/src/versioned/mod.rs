@@ -1,7 +1,8 @@
 use std::collections::BTreeMap;
+use std::collections::btree_map::Iter;
 use std::fmt;
 
-pub mod sync;
+//pub mod sync;
 
 /// stores changes to a given value and applies a counted number to each update
 ///
@@ -45,7 +46,6 @@ impl<T> Versioned<T> {
         self.store.remove(version)
     }
 
-    /*
     /// returns a reference to the desired version
     pub fn get(&self, version: &u64) -> Option<&T> {
         self.store.get(version)
@@ -60,7 +60,11 @@ impl<T> Versioned<T> {
     pub fn latest_version(&self) -> Option<(&u64, &T)> {
         self.store.last_key_value()
     }
-    */
+
+    /// returns a BTreeMap Iter
+    pub fn iter(&self) -> Iter<'_, u64, T> {
+        self.store.iter()
+    }
 }
 
 impl<T> fmt::Debug for Versioned<T>
