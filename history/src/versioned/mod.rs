@@ -31,6 +31,11 @@ impl<T> Versioned<T> {
         &self.store
     }
 
+    /// returns total stored values in the store
+    pub fn len(&self) -> usize {
+        self.store.len()
+    }
+
     /// updates the value returning the version number used
     pub fn update(&mut self, value: T) -> u64 {
         let version = self.count;
