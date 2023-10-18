@@ -47,7 +47,7 @@ impl<T> Versioned<T> {
     }
 
     /// drops the desired version returning the value found
-    pub fn drop(&mut self, version: &u64) -> Option<T> {
+    pub fn remove(&mut self, version: &u64) -> Option<T> {
         self.store.remove(version)
     }
 
