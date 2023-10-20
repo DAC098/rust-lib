@@ -16,8 +16,8 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Io(_) => f.write_str("Io"),
-            Error::Bincode(_) => f.write_str("Bincode"),
+            Error::Io(e) => fmt::Display::fmt(e, f),
+            Error::Bincode(e) => fmt::Display::fmt(e, f),
         }
     }
 }

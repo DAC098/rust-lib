@@ -259,7 +259,7 @@ mod test {
         let drop = versioned.update(12);
         versioned.update(9);
 
-        versioned.drop(&drop);
+        versioned.remove(&drop);
 
         let to_json = serde_json::to_string(&versioned)
             .expect("failed to serialize to json string");
@@ -281,7 +281,7 @@ mod test {
         let drop = versioned.update(12);
         versioned.update(9);
 
-        versioned.drop(&drop);
+        versioned.remove(&drop);
 
         let to_vec = bincode::serialize(&versioned)
             .expect("failed to serialize to binary");

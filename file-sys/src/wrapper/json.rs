@@ -17,8 +17,8 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Io(_) => f.write_str("Io"),
-            Error::Json(_) => f.write_str("Json"),
+            Error::Io(e) => fmt::Display::fmt(e, f),
+            Error::Json(e) => fmt::Display::fmt(e, f),
         }
     }
 }
