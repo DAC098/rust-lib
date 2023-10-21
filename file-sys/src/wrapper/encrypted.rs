@@ -308,6 +308,7 @@ where
     /// loads or creates the specified file using the master key provided
     ///
     /// if the file already exits it will follow the same operation as load
+    /// execept if the buffer is empty then it will return the default
     /// otherwise it will attempt to create an empty file.
     pub fn load_create<P, K>(path: P, master_key: K) -> Result<Self, Error>
     where
@@ -322,6 +323,15 @@ where
 
         if check {
             let buffer = Self::read_to_buffer(&path)?;
+
+            if buffer.len() == 0 {
+                return Ok(Encrypted {
+                    inner: Default::default(),
+                    path,
+                    key
+                });
+            }
+
             let inner = Self::decrypt_deserialize(&key, buffer)?;
 
             Ok(Encrypted {
