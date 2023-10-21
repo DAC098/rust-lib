@@ -3,6 +3,7 @@ use std::fs::OpenOptions;
 use std::io::{Read, Write, BufReader, BufWriter};
 use std::io::Error as IoError;
 use std::fmt;
+use std::default::Default;
 
 use serde::{Serialize, de::DeserializeOwned};
 use chacha20poly1305::{
@@ -101,6 +102,9 @@ pub struct Encrypted<T> {
 }
 
 impl<T> Encrypted<T> {
+    /// creates a new Encrypted with the provided data
+    ///
+    /// no checks are made on the path to ensure that the file exists
     pub fn new<P, K>(inner: T, path: P, key: K) -> Self
     where
         P: Into<PathBuf>,
@@ -113,10 +117,44 @@ impl<T> Encrypted<T> {
         }
     }
 
+    #[inline]
+    fn touch_file(path: &Path) -> Result<(), Error> {
+        OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .map_err(|e| Error::Io(e))?;
+
+        Ok(())
+    }
+
+    /// creates a new Encrypted with the provided data and makes the file
+    ///
+    /// will attempt to create a new file and throw an error if a file already
+    /// exists
+    pub fn create<P, K>(inner: T, path: P, key: K) -> Result<Self, Error>
+    where
+        P: Into<PathBuf>,
+        K: Into<Key>
+    {
+        let path: Box<Path> = path.into().into();
+        let key = key.into();
+
+        Self::touch_file(&path)?;
+
+        Ok(Encrypted {
+            inner,
+            path,
+            key
+        })
+    }
+
+    /// returns the current path for the wrapper
     pub fn path(&self) -> &Path {
         &self.path
     }
 
+    /// updates the current path to the provided value
     pub fn set_path<P>(&mut self, given: P)
     where
         P: Into<PathBuf>
@@ -124,10 +162,12 @@ impl<T> Encrypted<T> {
         self.path = given.into().into()
     }
 
+    /// returns the current key for encrypting the file data
     pub fn key(&self) -> &Key {
         &self.key
     }
 
+    /// updates the current key for encrypting the file data
     pub fn set_key<K>(&mut self, key: K)
     where
         K: Into<Key>
@@ -135,14 +175,17 @@ impl<T> Encrypted<T> {
         self.key = key.into();
     }
 
+    /// returns the inner value
     pub fn inner(&self) -> &T {
         &self.inner
     }
 
+    /// returns a mutable inner value
     pub fn inner_mut(&mut self) -> &mut T {
         &mut self.inner
     }
 
+    /// consumes the struct returning the inner value
     pub fn into_inner(self) -> T {
         self.inner
     }
@@ -152,6 +195,10 @@ impl<T> Encrypted<T>
 where
     T: Serialize
 {
+    /// saves the inner value to the provided file path
+    ///
+    /// data will be encrypted using the key stored and the file will be
+    /// truncated when written to
     pub fn save(&self) -> Result<(), Error> {
         let serialize = bincode::serialize(&self.inner)
             .map_err(|e| match *e {
@@ -174,6 +221,9 @@ where
         Ok(())
     }
 
+    /// saves the inner value to the provided file path using tokio fs
+    ///
+    /// similar operation as the blocking save
     #[cfg(feature = "tokio")]
     pub async fn save_async(&self) -> Result<(), Error> {
         use tokio::io::AsyncWriteExt;
@@ -209,14 +259,7 @@ impl<T> Encrypted<T>
 where
     T: DeserializeOwned
 {
-    pub fn load<P, K>(given: P, master_key: K) -> Result<Self, Error>
-    where
-        P: Into<PathBuf>,
-        K: Into<Key>,
-    {
-        let path = given.into().into();
-        let key = master_key.into();
-
+    fn read_to_buffer(path: &Path) -> Result<Vec<u8>, Error> {
         let file = OpenOptions::new()
             .read(true)
             .open(&path)
@@ -227,13 +270,33 @@ where
         reader.read_to_end(&mut buffer)
             .map_err(|e| Error::Io(e))?;
 
+        Ok(buffer)
+    }
+
+    fn decrypt_deserialize(key: &Key, buffer: Vec<u8>) -> Result<T, Error> {
         let decrypted = decrypt_data(&key, buffer)?;
 
-        let inner = bincode::deserialize(decrypted.as_slice())
+        bincode::deserialize(decrypted.as_slice())
             .map_err(|e| match *e {
                 bincode::ErrorKind::Io(io) => Error::Io(io),
                 _ => Error::Bincode(e),
-            })?;
+            })
+    }
+
+    /// loads the specified file using the master key provided
+    ///
+    /// assumes that the file already exists and is propperly encoded with the
+    /// encrypted data
+    pub fn load<P, K>(given: P, master_key: K) -> Result<Self, Error>
+    where
+        P: Into<PathBuf>,
+        K: Into<Key>,
+    {
+        let path: Box<Path> = given.into().into();
+        let key = master_key.into();
+
+        let buffer = Self::read_to_buffer(&path)?;
+        let inner = Self::decrypt_deserialize(&key, buffer)?;
 
         Ok(Encrypted {
             inner,
@@ -242,6 +305,44 @@ where
         })
     }
 
+    /// loads or creates the specified file using the master key provided
+    ///
+    /// if the file already exits it will follow the same operation as load
+    /// otherwise it will attempt to create an empty file.
+    pub fn load_create<P, K>(path: P, master_key: K) -> Result<Self, Error>
+    where
+        T: Default,
+        P: Into<PathBuf>,
+        K: Into<Key>,
+    {
+        let path: Box<Path> = path.into().into();
+        let key = master_key.into();
+        let check = path.try_exists()
+            .map_err(|e| Error::Io(e))?;
+
+        if check {
+            let buffer = Self::read_to_buffer(&path)?;
+            let inner = Self::decrypt_deserialize(&key, buffer)?;
+
+            Ok(Encrypted {
+                inner,
+                path,
+                key
+            })
+        } else {
+            Self::touch_file(&path)?;
+
+            Ok(Encrypted {
+                inner: Default::default(),
+                path,
+                key
+            })
+        }
+    }
+
+    /// loads the specified file using the master key provided using tokio fs
+    ///
+    /// similar to the blocking load
     #[cfg(feature = "tokio")]
     pub async fn load_async<P, K>(given: P, master_key: K) -> Result<Self, Error>
     where

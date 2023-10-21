@@ -72,6 +72,13 @@ impl<T> Versioned<T> {
     }
 }
 
+impl<T> std::default::Default for Versioned<T> {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> fmt::Debug for Versioned<T>
 where
     T: fmt::Debug

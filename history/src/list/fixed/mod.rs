@@ -155,6 +155,7 @@ impl<T, const N: usize> Fixed<T, N> {
 }
 
 impl<T, const N: usize> std::default::Default for Fixed<T, N> {
+    #[inline]
     fn default() -> Self {
         Fixed::new()
     }
